@@ -316,3 +316,7 @@ void ZLIB_INTERNAL zcfree (opaque, ptr)
 }
 
 #endif /* MY_ZCALLOC */
+
+#if defined(__i386__) || defined(__x86_64__)
+#  include "x86/cpudet.c"
+#endif

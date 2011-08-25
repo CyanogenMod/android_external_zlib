@@ -20,7 +20,8 @@ zlib_files := \
 	inflate.c \
 	infback.c \
 	inftrees.c \
-	inffast.c
+	inffast.c \
+	slhash.c
 
 zlib_arm_files :=
 zlib_arm_flags :=
