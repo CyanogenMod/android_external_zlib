@@ -76,8 +76,8 @@ inflate_fast_copy_vectorized:
                                        @; DON'T TOUCH r1 UNTIL FINAL
                                        @;  UPDATE OF r1 WITH ADDRESS OF r3
       cmp        r3,r2                 @
-      sublt      r4,r2,r3              @
-      subge      r4,r3,r2              @;r4 = gap = |out-from|
+      sublo      r4,r2,r3              @
+      subhs      r4,r3,r2              @;r4 = gap = |out-from|
 
       cmp        r4,#0
       beq        inflate_fast_copy_exit
