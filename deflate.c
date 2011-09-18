@@ -1,5 +1,5 @@
 /* deflate.c -- compress data using the deflation algorithm
- * Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+ * Copyright (C) 1995-2011 Jean-loup Gailly and Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -37,7 +37,7 @@
  *  REFERENCES
  *
  *      Deutsch, L.P.,"DEFLATE Compressed Data Format Specification".
- *      Available in http://www.ietf.org/rfc/rfc1951.txt
+ *      Available in http://tools.ietf.org/html/rfc1951
  *
  *      A description of the Rabin and Karp algorithm is given in the book
  *         "Algorithms" by R. Sedgewick, Addison-Wesley, p252.
@@ -52,7 +52,7 @@
 #include "deflate.h"
 
 const char deflate_copyright[] =
-   " deflate 1.2.5 Copyright 1995-2010 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.2.5.2 Copyright 1995-2011 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -393,6 +393,18 @@ int ZEXPORT deflateSetHeader (strm, head)
     if (strm == Z_NULL || strm->state == Z_NULL) return Z_STREAM_ERROR;
     if (strm->state->wrap != 2) return Z_STREAM_ERROR;
     strm->state->gzhead = head;
+    return Z_OK;
+}
+
+/* ========================================================================= */
+int ZEXPORT deflatePending (strm, pending, bits)
+    unsigned *pending;
+    int *bits;
+    z_streamp strm;
+{
+    if (strm == Z_NULL || strm->state == Z_NULL) return Z_STREAM_ERROR;
+    *pending = strm->state->pending;
+    *bits = strm->state->bi_valid;
     return Z_OK;
 }
 
@@ -1001,15 +1013,15 @@ local int read_buf(strm, buf, size)
 
     strm->avail_in  -= len;
 
+    zmemcpy(buf, strm->next_in, len);
     if (strm->state->wrap == 1) {
-        strm->adler = adler32(strm->adler, strm->next_in, len);
+        strm->adler = adler32(strm->adler, buf, len);
     }
 #ifdef GZIP
     else if (strm->state->wrap == 2) {
-        strm->adler = crc32(strm->adler, strm->next_in, len);
+        strm->adler = crc32(strm->adler, buf, len);
     }
 #endif
-    zmemcpy(buf, strm->next_in, len);
     strm->next_in  += len;
     strm->total_in += len;
 
@@ -1305,8 +1317,7 @@ local void check_match(s, start, match, length)
 local void fill_window(s)
     deflate_state *s;
 {
-    register unsigned n, m;
-    register Posf *p;
+    register unsigned n;
     unsigned more;    /* Amount of free space at the end of the window. */
     uInt wsize = s->w_size;
 
@@ -1342,24 +1353,7 @@ local void fill_window(s)
                later. (Using level 0 permanently is not an optimal usage of
                zlib, so we don't care about this pathological case.)
              */
-            n = s->hash_size;
-            p = &s->head[n];
-            do {
-                m = *--p;
-                *p = (Pos)(m >= wsize ? m-wsize : NIL);
-            } while (--n);
-
-            n = wsize;
-#ifndef FASTEST
-            p = &s->prev[n];
-            do {
-                m = *--p;
-                *p = (Pos)(m >= wsize ? m-wsize : NIL);
-                /* If n is not on any hash chain, prev[n] is garbage but
-                 * its value will never be used.
-                 */
-            } while (--n);
-#endif
+            _sh_slide(s->head, s->prev, wsize, s->hash_size);
             more += wsize;
         }
         if (s->strm->avail_in == 0) return;

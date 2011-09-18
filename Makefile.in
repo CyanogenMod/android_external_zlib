@@ -1,5 +1,5 @@
 # Makefile for zlib
-# Copyright (C) 1995-2010 Jean-loup Gailly.
+# Copyright (C) 1995-2011 Jean-loup Gailly.
 # For conditions of distribution and use, see copyright notice in zlib.h
 
 # To compile and test, type:
@@ -32,7 +32,7 @@ CPP=$(CC) -E
 
 STATICLIB=libz.a
 SHAREDLIB=libz.so
-SHAREDLIBV=libz.so.1.2.5
+SHAREDLIBV=libz.so.1.2.5.2
 SHAREDLIBM=libz.so.1
 LIBS=$(STATICLIB) $(SHAREDLIBV)
 
@@ -53,10 +53,10 @@ mandir = ${prefix}/share/man
 man3dir = ${mandir}/man3
 pkgconfigdir = ${libdir}/pkgconfig
 
-OBJC = adler32.o compress.o crc32.o deflate.o gzclose.o gzlib.o gzread.o \
+OBJC = adler32.o compress.o crc32.o deflate.o slhash.o gzclose.o gzlib.o gzread.o \
 	gzwrite.o infback.o inffast.o inflate.o inftrees.o trees.o uncompr.o zutil.o
 
-PIC_OBJC = adler32.lo compress.lo crc32.lo deflate.lo gzclose.lo gzlib.lo gzread.lo \
+PIC_OBJC = adler32.lo compress.lo crc32.lo deflate.lo slhash.lo gzclose.lo gzlib.lo gzread.lo \
 	gzwrite.lo infback.lo inffast.lo inflate.lo inftrees.lo trees.lo uncompr.lo zutil.lo
 
 # to use the asm code: make OBJA=match.o, PIC_OBJA=match.lo
@@ -136,7 +136,7 @@ minigzip64.o: minigzip.c zlib.h zconf.h
 	$(CC) $(SFLAGS) -DPIC -c -o objs/$*.o $<
 	-@mv objs/$*.o $@
 
-$(SHAREDLIBV): $(PIC_OBJS)
+placebo $(SHAREDLIBV): $(PIC_OBJS) libz.a
 	$(LDSHARED) $(SFLAGS) -o $@ $(PIC_OBJS) $(LDSHAREDLIBC) $(LDFLAGS)
 	rm -f $(SHAREDLIB) $(SHAREDLIBM)
 	ln -s $@ $(SHAREDLIB)
@@ -168,14 +168,16 @@ install-libs: $(LIBS)
 	-@if [ ! -d $(DESTDIR)$(man3dir)      ]; then mkdir -p $(DESTDIR)$(man3dir); fi
 	-@if [ ! -d $(DESTDIR)$(pkgconfigdir) ]; then mkdir -p $(DESTDIR)$(pkgconfigdir); fi
 	cp $(STATICLIB) $(DESTDIR)$(libdir)
-	cp $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir)
-	cd $(DESTDIR)$(libdir); chmod u=rw,go=r $(STATICLIB)
-	-@(cd $(DESTDIR)$(libdir); $(RANLIB) libz.a || true) >/dev/null 2>&1
-	-@cd $(DESTDIR)$(sharedlibdir); if test "$(SHAREDLIBV)" -a -f $(SHAREDLIBV); then \
-	  chmod 755 $(SHAREDLIBV); \
-	  rm -f $(SHAREDLIB) $(SHAREDLIBM); \
-	  ln -s $(SHAREDLIBV) $(SHAREDLIB); \
-	  ln -s $(SHAREDLIBV) $(SHAREDLIBM); \
+	chmod 644 $(DESTDIR)$(libdir)/$(STATICLIB)
+	-@($(RANLIB) $(DESTDIR)$(libdir)/libz.a || true) >/dev/null 2>&1
+	-@if test -n "$(SHAREDLIBV)"; then \
+	  cp $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir); \
+	  echo "cp $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir)"; \
+	  chmod 755 $(DESTDIR)$(sharedlibdir)/$(SHAREDLIBV); \
+	  echo "chmod 755 $(DESTDIR)$(sharedlibdir)/$(SHAREDLIBV)"; \
+	  rm -f $(DESTDIR)$(sharedlibdir)/$(SHAREDLIB) $(DESTDIR)$(sharedlibdir)/$(SHAREDLIBM); \
+	  ln -s $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir)/$(SHAREDLIB); \
+	  ln -s $(SHAREDLIBV) $(DESTDIR)$(sharedlibdir)/$(SHAREDLIBM); \
 	  ($(LDCONFIG) || true)  >/dev/null 2>&1; \
 	fi
 	cp zlib.3 $(DESTDIR)$(man3dir)
@@ -193,7 +195,7 @@ install: install-libs
 uninstall:
 	cd $(DESTDIR)$(includedir); rm -f zlib.h zconf.h
 	cd $(DESTDIR)$(libdir); rm -f libz.a; \
-	if test "$(SHAREDLIBV)" -a -f $(SHAREDLIBV); then \
+	if test -n "$(SHAREDLIBV)" -a -f $(SHAREDLIBV); then \
 	  rm -f $(SHAREDLIBV) $(SHAREDLIB) $(SHAREDLIBM); \
 	fi
 	cd $(DESTDIR)$(man3dir); rm -f zlib.3
@@ -236,21 +238,25 @@ depend:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-adler32.o zutil.o: zutil.h zlib.h zconf.h
+adler32.o: adler32.c ppc/adler32.c arm/adler32.c x86/adler32.c alpha/adler32.c mips/adler32.c bfin/adler32.c ia64/adler32.c sparc/adler32.c zutil.h zlib.h zconf.h
+zutil.o: zutil.h zlib.h zconf.h
 gzclose.o gzlib.o gzread.o gzwrite.o: zlib.h zconf.h gzguts.h
 compress.o example.o minigzip.o uncompr.o: zlib.h zconf.h
 crc32.o: zutil.h zlib.h zconf.h crc32.h
 deflate.o: deflate.h zutil.h zlib.h zconf.h
+slhash.o: slhash.c x86/slhash.c arm/slhash.c ppc/slhash.c bfin/slhash.c alpha/slhash.c mips/slhash.c parisc/slhash.c ia64/slhash.c deflate.h zutil.h zlib.h zconf.h
 infback.o inflate.o: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h inffixed.h
 inffast.o: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h
 inftrees.o: zutil.h zlib.h zconf.h inftrees.h
 trees.o: deflate.h zutil.h zlib.h zconf.h trees.h
 
-adler32.lo zutil.lo: zutil.h zlib.h zconf.h
+adler32.lo: adler32.c ppc/adler32.c arm/adler32.c x86/adler32.c alpha/adler32.c mips/adler32.c bfin/adler32.c ia64/adler32.c sparc/adler32.c zutil.h zlib.h zconf.h
+zutil.lo: zutil.h zlib.h zconf.h
 gzclose.lo gzlib.lo gzread.lo gzwrite.lo: zlib.h zconf.h gzguts.h
 compress.lo example.lo minigzip.lo uncompr.lo: zlib.h zconf.h
 crc32.lo: zutil.h zlib.h zconf.h crc32.h
 deflate.lo: deflate.h zutil.h zlib.h zconf.h
+slhash.lo: slhash.c x86/slhash.c arm/slhash.c ppc/slhash.c bfin/slhash.c alpha/slhash.c mips/slhash.c parisc/slhash.c ia64/slhash.c deflate.h zutil.h zlib.h zconf.h
 infback.lo inflate.lo: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h inffixed.h
 inffast.lo: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h
 inftrees.lo: zutil.h zlib.h zconf.h inftrees.h

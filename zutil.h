@@ -13,13 +13,45 @@
 #ifndef ZUTIL_H
 #define ZUTIL_H
 
-#if ((__GNUC__-0) * 10 + __GNUC_MINOR__-0 >= 33) && !defined(NO_VIZ)
+#define GCC_VERSION_GE(x) ((__GNUC__-0) * 100 + __GNUC_MINOR__-0 >= x)
+
+#if GCC_VERSION_GE(303) && !defined(NO_VIZ)
 #  define ZLIB_INTERNAL __attribute__((visibility ("hidden")))
 #else
 #  define ZLIB_INTERNAL
 #endif
 
 #include "zlib.h"
+
+#if GCC_VERSION_GE(301)
+/* sometimes leaks out of old kernel header */
+#  undef noinline
+#  define noinline __attribute__((__noinline__))
+#else
+#  ifndef noinline
+#    define noinline
+#  endif
+#endif
+
+#if GCC_VERSION_GE(301)
+#  define GCC_ATTR_UNUSED_PARAM __attribute__((__unused__))
+#else
+#  define GCC_ATTR_UNUSED_PARAM
+#endif
+
+#if GCC_VERSION_GE(296)
+#  undef likely
+#  undef unlikely
+#  define likely(x)   __builtin_expect(!!(x), 1)
+#  define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#  ifndef likely
+#    define likely(x)   (x)
+#  endif
+#  ifndef unlikely
+#    define unlikely(x) (x)
+#  endif
+#endif
 
 #ifdef STDC
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))
@@ -28,6 +60,12 @@
 #  include <string.h>
 #  include <stdlib.h>
 #endif
+
+#define ROUND_TO(x , n) ((x) & ~((n) - 1L))
+#define DIV_ROUNDUP(a, b) (((a) + (b) - 1) / (b))
+#define ALIGN_DIFF(x, n) ((((intptr_t)((x)+(n) - 1L) & ~((intptr_t)(n) - 1L))) - (intptr_t)(x))
+#define ALIGN_DOWN(x, n) (((intptr_t)(x)) & ~((intptr_t)(n) - 1L))
+#define ALIGN_DOWN_DIFF(x, n) (((intptr_t)(x)) & ((intptr_t)(n) - 1L))
 
 #ifndef local
 #  define local static
@@ -150,6 +188,14 @@ extern const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    endif
 #  else
 #    define fdopen(fd,type)  _fdopen(fd,type)
+#  endif
+#endif
+
+#ifndef UINT64_C
+#  if defined(_MSC_VER) || defined(__BORLANDC__)
+#    define UINT64_C(c)    (c ## ui64)
+#  else
+#    define UINT64_C(c)    (c ## ULL)
 #  endif
 #endif
 
