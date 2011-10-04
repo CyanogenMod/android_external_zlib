@@ -95,12 +95,12 @@ inflate_fast_copy_vectorized:
       beq        inflate_fast_copy_gap4b_proc
 
       cmp        r4,#8
-      blt        inflate_fast_copy_gap5to7b_proc
+      blo        inflate_fast_copy_gap5to7b_proc
       beq        inflate_fast_copy_gap8b_proc
 
       cmp        r4,#16
-      blt        inflate_fast_copy_gap9to15b_proc
-      bge        inflate_fast_copy_gap16b_proc
+      blo        inflate_fast_copy_gap9to15b_proc
+      bhs        inflate_fast_copy_gap16b_proc
 
 
       #;; ------------------------------------------------------------------
