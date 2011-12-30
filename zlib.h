@@ -2,6 +2,7 @@
   version 1.2.5.2, September xxth, 2011
 
   Copyright (C) 1995-2011 Jean-loup Gailly and Mark Adler
+  Copyright (c) 2010-2011 Code Aurora Forum. All rights reserved.
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

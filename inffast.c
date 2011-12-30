@@ -1,5 +1,6 @@
 /* inffast.c -- fast decoding
  * Copyright (C) 1995-2008, 2010 Mark Adler
+ * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -7,6 +8,10 @@
 #include "inftrees.h"
 #include "inflate.h"
 #include "inffast.h"
+
+#ifdef __ARM_HAVE_NEON
+extern void inflate_fast_copy_neon(unsigned len, unsigned char **out, unsigned char *from);
+#endif
 
 #ifndef ASMINF
 
@@ -253,6 +258,9 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                             from = out - dist;  /* rest from output */
                         }
                     }
+#ifdef __ARM_HAVE_NEON
+                    inflate_fast_copy_neon(len, &out, from);
+#else
                     while (len > 2) {
                         PUP(out) = PUP(from);
                         PUP(out) = PUP(from);
@@ -264,9 +272,13 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                         if (len > 1)
                             PUP(out) = PUP(from);
                     }
+#endif
                 }
                 else {
                     from = out - dist;          /* copy direct from output */
+#ifdef __ARM_HAVE_NEON
+                    inflate_fast_copy_neon(len, &out, from);
+#else
                     do {                        /* minimum length is three */
                         PUP(out) = PUP(from);
                         PUP(out) = PUP(from);
@@ -278,6 +290,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                         if (len > 1)
                             PUP(out) = PUP(from);
                     }
+#endif
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */
