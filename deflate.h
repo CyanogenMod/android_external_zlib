@@ -188,7 +188,7 @@ typedef struct internal_state {
     int nice_match; /* Stop searching when current match exceeds this */
 
                 /* used by trees.c: */
-    /* Didn't use ct_data typedef below to supress compiler warning */
+    /* Didn't use ct_data typedef below to suppress compiler warning */
     struct ct_data_s dyn_ltree[HEAP_SIZE];   /* literal and length tree */
     struct ct_data_s dyn_dtree[2*D_CODES+1]; /* distance tree */
     struct ct_data_s bl_tree[2*BL_CODES+1];  /* Huffman tree for bit lengths */
@@ -297,6 +297,8 @@ void ZLIB_INTERNAL _tr_flush_block OF((deflate_state *s, charf *buf,
 void ZLIB_INTERNAL _tr_align OF((deflate_state *s));
 void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
                         ulg stored_len, int last));
+        /* in slhash.c */
+void ZLIB_INTERNAL _sh_slide OF((Posf *p, Posf *q, uInt wsize, unsigned n));
 
 #define d_code(dist) \
    ((dist) < 256 ? _dist_code[dist] : _dist_code[256+((dist)>>7)])

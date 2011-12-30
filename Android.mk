@@ -20,7 +20,8 @@ zlib_files := \
 	inflate.c \
 	infback.c \
 	inftrees.c \
-	inffast.c
+	inffast.c \
+	slhash.c
 
 LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
