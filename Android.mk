@@ -80,7 +80,7 @@ include $(BUILD_STATIC_LIBRARY)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=        \
-	minigzip.c
+	test/minigzip.c
 
 LOCAL_MODULE:= gzip
 
@@ -91,11 +91,10 @@ include $(BUILD_EXECUTABLE)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:=        \
-	minigzip.c
+	test/minigzip.c
 
 LOCAL_MODULE:= minigzip
 
 LOCAL_STATIC_LIBRARIES := libz
 
 include $(BUILD_HOST_EXECUTABLE)
-

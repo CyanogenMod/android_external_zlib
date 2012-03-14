@@ -112,6 +112,8 @@ local int host_is_bigendian()
 #    include "ppc/adler32.c"
 #  elif defined(__sparc) || defined(__sparc__)
 #    include "sparc/adler32.c"
+#  elif defined(__tile__)
+#    include "tile/adler32.c"
 #  elif defined(__i386__) || defined(__x86_64__)
 #    include "x86/adler32.c"
 #  endif

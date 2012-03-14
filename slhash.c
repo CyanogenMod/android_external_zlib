@@ -20,6 +20,8 @@
 #    include "parisc/slhash.c"
 #  elif defined(__powerpc__) || defined(__powerpc64__)
 #    include "ppc/slhash.c"
+#  elif defined(__tile__)
+#    include "tile/slhash.c"
 #  elif defined(__i386__) || defined(__x86_64__)
 #    include "x86/slhash.c"
 #  endif
