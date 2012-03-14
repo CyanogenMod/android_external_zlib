@@ -32,11 +32,12 @@ CPP=$(CC) -E
 
 STATICLIB=libz.a
 SHAREDLIB=libz.so
-SHAREDLIBV=libz.so.1.2.5.2
+SHAREDLIBV=libz.so.1.2.7
 SHAREDLIBM=libz.so.1
 LIBS=$(STATICLIB) $(SHAREDLIBV)
 
-AR=ar rc
+AR=ar
+ARFLAGS=rc
 RANLIB=ranlib
 LDCONFIG=ldconfig
 LDSHAREDLIBC=-lc
@@ -53,11 +54,13 @@ mandir = ${prefix}/share/man
 man3dir = ${mandir}/man3
 pkgconfigdir = ${libdir}/pkgconfig
 
-OBJC = adler32.o compress.o crc32.o deflate.o slhash.o gzclose.o gzlib.o gzread.o \
-	gzwrite.o infback.o inffast.o inflate.o inftrees.o trees.o uncompr.o zutil.o
+OBJZ = adler32.o crc32.o deflate.o slhash.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o
+OBJG = compress.o uncompr.o gzclose.o gzlib.o gzread.o gzwrite.o
+OBJC = $(OBJZ) $(OBJG)
 
-PIC_OBJC = adler32.lo compress.lo crc32.lo deflate.lo slhash.lo gzclose.lo gzlib.lo gzread.lo \
-	gzwrite.lo infback.lo inffast.lo inflate.lo inftrees.lo trees.lo uncompr.lo zutil.lo
+PIC_OBJZ = adler32.lo crc32.lo deflate.lo slhash.lo infback.lo inffast.lo inflate.lo inftrees.lo trees.lo zutil.lo
+PIC_OBJG = compress.lo uncompr.lo gzclose.lo gzlib.lo gzread.lo gzwrite.lo
+PIC_OBJC = $(PIC_OBJZ) $(PIC_OBJG)
 
 # to use the asm code: make OBJA=match.o, PIC_OBJA=match.lo
 OBJA =
@@ -107,8 +110,19 @@ test64: all64
 	fi
 	-@rm -f foo.gz
 
+infcover.o: test/infcover.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -I. -c -o $@ test/infcover.c
+
+infcover: infcover.o libz.a
+	$(CC) $(CFLAGS) -o $@ infcover.o libz.a
+
+cover: infcover
+	rm -f *.gcda
+	./infcover
+	gcov inf*.c
+
 libz.a: $(OBJS)
-	$(AR) $@ $(OBJS)
+	$(AR) $(ARFLAGS) $@ $(OBJS)
 	-@ ($(RANLIB) $@ || true) >/dev/null 2>&1
 
 match.o: match.S
@@ -123,11 +137,17 @@ match.lo: match.S
 	mv _match.o match.lo
 	rm -f _match.s
 
-example64.o: example.c zlib.h zconf.h
-	$(CC) $(CFLAGS) -D_FILE_OFFSET_BITS=64 -c -o $@ example.c
+example.o: test/example.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -I. -c -o $@ test/example.c
 
-minigzip64.o: minigzip.c zlib.h zconf.h
-	$(CC) $(CFLAGS) -D_FILE_OFFSET_BITS=64 -c -o $@ minigzip.c
+minigzip.o: test/minigzip.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -I. -c -o $@ test/minigzip.c
+
+example64.o: test/example.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -I. -D_FILE_OFFSET_BITS=64 -c -o $@ test/example.c
+
+minigzip64.o: test/minigzip.c zlib.h zconf.h
+	$(CC) $(CFLAGS) -I. -D_FILE_OFFSET_BITS=64 -c -o $@ test/minigzip.c
 
 .SUFFIXES: .lo
 
@@ -206,9 +226,12 @@ docs: zlib.3.pdf
 zlib.3.pdf: zlib.3
 	groff -mandoc -f H -T ps zlib.3 | ps2pdf - zlib.3.pdf
 
-zconf.h.in: zconf.h.cmakein
-	sed "/^#cmakedefine/D" < zconf.h.cmakein > zconf.h.in
-	touch -r zconf.h.cmakein zconf.h.in
+zconf.h.cmakein: zconf.h.in
+	-@ TEMPFILE=`mktemp -u __XXXXXX`; \
+	echo "/#define ZCONF_H/ a\\\\\n#cmakedefine Z_PREFIX\\\\\n#cmakedefine Z_HAVE_UNISTD_H\n" > $$TEMPFILE &&\
+	sed -f $$TEMPFILE zconf.h.in > zconf.h.cmakein &&\
+	touch -r zconf.h.in zconf.h.cmakein &&\
+	rm $$TEMPFILE
 
 zconf: zconf.h.in
 	cp -p zconf.h.in zconf.h
@@ -218,13 +241,16 @@ clean:
 	rm -f *.o *.lo *~ \
 	   example$(EXE) minigzip$(EXE) examplesh$(EXE) minigzipsh$(EXE) \
 	   example64$(EXE) minigzip64$(EXE) \
+	   infcover \
 	   libz.* foo.gz so_locations \
 	   _match.s maketree contrib/infback9/*.o
 	rm -rf objs
+	rm -f *.gcda *.gcno *.gcov
+	rm -f contrib/infback9/*.gcda contrib/infback9/*.gcno contrib/infback9/*.gcov
 
 maintainer-clean: distclean
-distclean: clean zconf docs
-	rm -f Makefile zlib.pc
+distclean: clean zconf zconf.h.cmakein docs
+	rm -f Makefile zlib.pc configure.log
 	-@rm -f .DS_Store
 	-@printf 'all:\n\t-@echo "Please use ./configure first.  Thank you."\n' > Makefile
 	-@printf '\ndistclean:\n\tmake -f Makefile.in distclean\n' >> Makefile
