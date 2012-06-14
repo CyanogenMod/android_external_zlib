@@ -11,6 +11,8 @@
 #  define HAVE_SLHASH_VEC
 #  define HAVE_SLHASH_COMPLETE
 
+#define IGNORE_MMX
+
 local noinline void update_hoffset_x86(Posf *p, uInt wsize, unsigned n);
 local noinline void slhash_x86(Posf *p, Posf *q, uInt wsize, unsigned n);
 local noinline void slhash_SSE2(Posf *p, Posf *q, uInt wsize, unsigned n);
@@ -185,6 +187,7 @@ local noinline void slhash_SSE2(Posf *p, Posf *q, uInt wsize, unsigned n)
 }
 
 #  ifndef __x86_64__
+#  ifndef IGNORE_MMX
 /* ========================================================================= */
 local void update_hoffset_MMX(Posf *p, uInt wsize, unsigned n)
 {
@@ -241,7 +244,7 @@ local noinline void slhash_MMX(Posf *p, Posf *q, uInt wsize, unsigned n)
     asm volatile ("emms");
 }
 #  endif
-
+#  endif
 /* ========================================================================= */
 local noinline void update_hoffset_x86(Posf *p, uInt wsize, unsigned n)
 {
@@ -294,7 +297,9 @@ enum slhash_types
     T_SLHASH_RTSWITCH = 0,
     T_SLHASH_X86,
 #  ifndef __x86_64__
+#  ifndef IGNORE_MMX
     T_SLHASH_MMX,
+#  endif
 #  endif
     T_SLHASH_SSE2,
     T_SLHASH_SSE4_1,
@@ -309,7 +314,9 @@ local const struct test_cpu_feature tfeat_slhash_vec[] =
     {T_SLHASH_SSE4_1,        0, {0,                  CFB(CFEATURE_SSE4_1)}},
     {T_SLHASH_SSE2,          0, {CFB(CFEATURE_SSE2),                    0}},
 #  ifndef __x86_64__
+#  ifndef IGNORE_MMX
     {T_SLHASH_MMX,           0, {CFB(CFEATURE_MMX),                     0}},
+#  endif
 #  endif
     {T_SLHASH_X86, CFF_DEFAULT, { 0, 0}},
 };
@@ -325,7 +332,9 @@ local void (*const slhash_ptr_tab[])(Posf *p, Posf *q, uInt wsize, unsigned n) =
     slhash_vec_runtimesw,
     slhash_x86,
 #  ifndef __x86_64__
+#  ifndef IGNORE_MMX
     slhash_MMX,
+#  endif
 #  endif
     slhash_SSE2,
     slhash_SSE4_1,
