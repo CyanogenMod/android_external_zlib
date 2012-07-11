@@ -19,16 +19,25 @@ zlib.map        Linux symbol information
 zlib.pc.in      Template for pkg-config descriptor
 zlib2ansi       perl script to convert source files for C++ compilation
 
+alpha/          files for the alpha platform
 amiga/          makefiles for Amiga SAS C
+arm/            files for the arm platform
 as400/          makefiles for AS/400
+bfin/           files for the bfin platform
 doc/            documentation for formats and algorithms
+mips/           files for the mips platform
+ia64/           files for the ia64 platform
 msdos/          makefiles for MSDOS
 nintendods/     makefile for Nintendo DS
 old/            makefiles for various architectures and zlib documentation
                 files that have not yet been updated for zlib 1.2.x
+parisc/         files for the parisc platform
+ppc/            files for the ppc platform
 qnx/            makefiles for QNX
+sparc/          files for the sparc platform
 watcom/         makefiles for OpenWatcom
 win32/          makefiles for Windows
+x86/            files for the x86 platform
 
                 zlib public header files (required for library use):
 zconf.h
@@ -54,6 +63,7 @@ inflate.c
 inflate.h
 inftrees.c
 inftrees.h
+slhash.c
 trees.c
 trees.h
 uncompr.c

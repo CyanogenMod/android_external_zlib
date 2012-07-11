@@ -1,7 +1,8 @@
 /* zlib.h -- interface of the 'zlib' general purpose compression library
-  version 1.2.6, January 29th, 2012
+  version 1.2.7, February xxth, 2012
 
   Copyright (C) 1995-2012 Jean-loup Gailly and Mark Adler
+  Copyright (c) 2010-2011 Code Aurora Forum. All rights reserved.
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -37,11 +38,11 @@
 extern "C" {
 #endif
 
-#define ZLIB_VERSION "1.2.6"
-#define ZLIB_VERNUM 0x1260
+#define ZLIB_VERSION "1.2.7-motley"
+#define ZLIB_VERNUM 0x1270
 #define ZLIB_VER_MAJOR 1
 #define ZLIB_VER_MINOR 2
-#define ZLIB_VER_REVISION 6
+#define ZLIB_VER_REVISION 7
 #define ZLIB_VER_SUBREVISION 0
 
 /*
@@ -1217,7 +1218,10 @@ ZEXTERN gzFile ZEXPORT gzopen OF((const char *path, const char *mode));
 
      "a" can be used instead of "w" to request that the gzip stream that will
    be written be appended to the file.  "+" will result in an error, since
-   reading and writing to the same gzip file is not supported.
+   reading and writing to the same gzip file is not supported.  The addition of
+   "x" when writing will create the file exclusively, which fails if the file
+   already exists.  On systems that support it, the addition of "e" when
+   reading or writing will set the flag to close the file on an execve() call.
 
      These functions, as well as gzip, will read and decode a sequence of gzip
    streams in a file.  The append function of gzopen() can be used to create
@@ -1578,9 +1582,8 @@ ZEXTERN uLong ZEXPORT crc32   OF((uLong crc, const Bytef *buf, uInt len));
 /*
      Update a running CRC-32 with the bytes buf[0..len-1] and return the
    updated CRC-32.  If buf is Z_NULL, this function returns the required
-   initial value for the for the crc.  Pre- and post-conditioning (one's
-   complement) is performed within this function so it shouldn't be done by the
-   application.
+   initial value for the crc.  Pre- and post-conditioning (one's complement) is
+   performed within this function so it shouldn't be done by the application.
 
    Usage example:
 
@@ -1650,9 +1653,15 @@ struct gzFile_s {
     unsigned char *next;
     z_off64_t pos;
 };
-ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));
-#define gzgetc(g) \
-    ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) : gzgetc_(g))
+ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));  /* backward compatibility */
+#ifdef Z_PREFIX_SET
+#  undef z_gzgetc
+#  define z_gzgetc(g) \
+          ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) : gzgetc(g))
+#else
+#  define gzgetc(g) \
+          ((g)->have ? ((g)->have--, (g)->pos++, *((g)->next)++) : gzgetc(g))
+#endif
 
 /* provide 64-bit offset functions if _LARGEFILE64_SOURCE defined, and/or
  * change the regular functions to 64 bits if _FILE_OFFSET_BITS is 64 (if
@@ -1721,9 +1730,6 @@ ZEXTERN const uLongf * ZEXPORT get_crc_table    OF((void));
 ZEXTERN int            ZEXPORT inflateUndermine OF((z_streamp, int));
 ZEXTERN int            ZEXPORT inflateResetKeep OF((z_streamp));
 ZEXTERN int            ZEXPORT deflateResetKeep OF((z_streamp));
-#ifndef Z_SOLO
-  ZEXTERN unsigned long  ZEXPORT gzflags          OF((void));
-#endif
 
 #ifdef __cplusplus
 }

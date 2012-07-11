@@ -52,7 +52,7 @@
 #include "deflate.h"
 
 const char deflate_copyright[] =
-   " deflate 1.2.6 Copyright 1995-2012 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.2.7 Copyright 1995-2012 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -1388,8 +1388,7 @@ local void check_match(s, start, match, length)
 local void fill_window(s)
     deflate_state *s;
 {
-    register unsigned n, m;
-    register Posf *p;
+    register unsigned n;
     unsigned more;    /* Amount of free space at the end of the window. */
     uInt wsize = s->w_size;
 
@@ -1427,24 +1426,7 @@ local void fill_window(s)
                later. (Using level 0 permanently is not an optimal usage of
                zlib, so we don't care about this pathological case.)
              */
-            n = s->hash_size;
-            p = &s->head[n];
-            do {
-                m = *--p;
-                *p = (Pos)(m >= wsize ? m-wsize : NIL);
-            } while (--n);
-
-            n = wsize;
-#ifndef FASTEST
-            p = &s->prev[n];
-            do {
-                m = *--p;
-                *p = (Pos)(m >= wsize ? m-wsize : NIL);
-                /* If n is not on any hash chain, prev[n] is garbage but
-                 * its value will never be used.
-                 */
-            } while (--n);
-#endif
+            _sh_slide(s->head, s->prev, wsize, s->hash_size);
             more += wsize;
         }
         if (s->strm->avail_in == 0) break;

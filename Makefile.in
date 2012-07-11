@@ -32,7 +32,7 @@ CPP=$(CC) -E
 
 STATICLIB=libz.a
 SHAREDLIB=libz.so
-SHAREDLIBV=libz.so.1.2.6
+SHAREDLIBV=libz.so.1.2.7
 SHAREDLIBM=libz.so.1
 LIBS=$(STATICLIB) $(SHAREDLIBV)
 
@@ -53,13 +53,12 @@ includedir = ${prefix}/include
 mandir = ${prefix}/share/man
 man3dir = ${mandir}/man3
 pkgconfigdir = ${libdir}/pkgconfig
-tempfile := $(shell mktemp -u __XXXXXX)
 
-OBJZ = adler32.o crc32.o deflate.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o
+OBJZ = adler32.o crc32.o deflate.o slhash.o infback.o inffast.o inflate.o inftrees.o trees.o zutil.o
 OBJG = compress.o uncompr.o gzclose.o gzlib.o gzread.o gzwrite.o
 OBJC = $(OBJZ) $(OBJG)
 
-PIC_OBJZ = adler32.lo crc32.lo deflate.lo infback.lo inffast.lo inflate.lo inftrees.lo trees.lo zutil.lo
+PIC_OBJZ = adler32.lo crc32.lo deflate.lo slhash.lo infback.lo inffast.lo inflate.lo inftrees.lo trees.lo zutil.lo
 PIC_OBJG = compress.lo uncompr.lo gzclose.lo gzlib.lo gzread.lo gzwrite.lo
 PIC_OBJC = $(PIC_OBJZ) $(PIC_OBJG)
 
@@ -228,10 +227,11 @@ zlib.3.pdf: zlib.3
 	groff -mandoc -f H -T ps zlib.3 | ps2pdf - zlib.3.pdf
 
 zconf.h.cmakein: zconf.h.in
-	-@echo "/#define ZCONF_H/ a\\\\\n#cmakedefine Z_PREFIX\\\\\n#cmakedefine Z_HAVE_UNISTD_H\n" > $(tempfile)
-	-@sed -f $(tempfile) zconf.h.in > zconf.h.cmakein
-	-@touch -r zconf.h.in zconf.h.cmakein
-	-@rm $(tempfile)
+	-@ TEMPFILE=`mktemp -u __XXXXXX`; \
+	echo "/#define ZCONF_H/ a\\\\\n#cmakedefine Z_PREFIX\\\\\n#cmakedefine Z_HAVE_UNISTD_H\n" > $$TEMPFILE &&\
+	sed -f $$TEMPFILE zconf.h.in > zconf.h.cmakein &&\
+	touch -r zconf.h.in zconf.h.cmakein &&\
+	rm $$TEMPFILE
 
 zconf: zconf.h.in
 	cp -p zconf.h.in zconf.h
@@ -264,21 +264,25 @@ depend:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-adler32.o zutil.o: zutil.h zlib.h zconf.h
+adler32.o: adler32.c ppc/adler32.c arm/adler32.c x86/adler32.c alpha/adler32.c mips/adler32.c bfin/adler32.c ia64/adler32.c sparc/adler32.c zutil.h zlib.h zconf.h
+zutil.o: zutil.h zlib.h zconf.h
 gzclose.o gzlib.o gzread.o gzwrite.o: zlib.h zconf.h gzguts.h
 compress.o example.o minigzip.o uncompr.o: zlib.h zconf.h
 crc32.o: zutil.h zlib.h zconf.h crc32.h
 deflate.o: deflate.h zutil.h zlib.h zconf.h
+slhash.o: slhash.c x86/slhash.c arm/slhash.c ppc/slhash.c bfin/slhash.c alpha/slhash.c mips/slhash.c parisc/slhash.c ia64/slhash.c deflate.h zutil.h zlib.h zconf.h
 infback.o inflate.o: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h inffixed.h
 inffast.o: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h
 inftrees.o: zutil.h zlib.h zconf.h inftrees.h
 trees.o: deflate.h zutil.h zlib.h zconf.h trees.h
 
-adler32.lo zutil.lo: zutil.h zlib.h zconf.h
+adler32.lo: adler32.c ppc/adler32.c arm/adler32.c x86/adler32.c alpha/adler32.c mips/adler32.c bfin/adler32.c ia64/adler32.c sparc/adler32.c zutil.h zlib.h zconf.h
+zutil.lo: zutil.h zlib.h zconf.h
 gzclose.lo gzlib.lo gzread.lo gzwrite.lo: zlib.h zconf.h gzguts.h
 compress.lo example.lo minigzip.lo uncompr.lo: zlib.h zconf.h
 crc32.lo: zutil.h zlib.h zconf.h crc32.h
 deflate.lo: deflate.h zutil.h zlib.h zconf.h
+slhash.lo: slhash.c x86/slhash.c arm/slhash.c ppc/slhash.c bfin/slhash.c alpha/slhash.c mips/slhash.c parisc/slhash.c ia64/slhash.c deflate.h zutil.h zlib.h zconf.h
 infback.lo inflate.lo: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h inffixed.h
 inffast.lo: zutil.h zlib.h zconf.h inftrees.h inflate.h inffast.h
 inftrees.lo: zutil.h zlib.h zconf.h inftrees.h
