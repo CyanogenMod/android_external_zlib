@@ -301,6 +301,8 @@ void ZLIB_INTERNAL _tr_flush_bits OF((deflate_state *s));
 void ZLIB_INTERNAL _tr_align OF((deflate_state *s));
 void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
                         ulg stored_len, int last));
+        /* in slhash.c */
+void ZLIB_INTERNAL _sh_slide OF((Posf *p, Posf *q, uInt wsize, unsigned n));
 
 #define d_code(dist) \
    ((dist) < 256 ? _dist_code[dist] : _dist_code[256+((dist)>>7)])

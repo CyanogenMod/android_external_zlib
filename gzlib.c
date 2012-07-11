@@ -94,6 +94,7 @@ local gzFile gz_open(path, fd, mode)
     const char *mode;
 {
     gz_statep state;
+    int cloexec = 0, exclusive = 0;
 
     /* check input */
     if (path == NULL)
@@ -132,6 +133,12 @@ local gzFile gz_open(path, fd, mode)
                 free(state);
                 return NULL;
             case 'b':       /* ignore -- will request binary anyway */
+                break;
+            case 'e':
+                cloexec = 1;
+                break;
+            case 'x':
+                exclusive = 1;
                 break;
             case 'f':
                 state->strategy = Z_FILTERED;
@@ -184,12 +191,18 @@ local gzFile gz_open(path, fd, mode)
 #ifdef O_BINARY
             O_BINARY |
 #endif
+#ifdef O_CLOEXEC
+            (cloexec ? O_CLOEXEC : 0) |
+#endif
             (state->mode == GZ_READ ?
                 O_RDONLY :
-                (O_WRONLY | O_CREAT | (
-                    state->mode == GZ_WRITE ?
-                        O_TRUNC :
-                        O_APPEND))),
+                (O_WRONLY | O_CREAT |
+#ifdef O_EXCL
+                 (exclusive ? O_EXCL : 0) |
+#endif
+                 (state->mode == GZ_WRITE ?
+                    O_TRUNC :
+                    O_APPEND))),
             0666);
     if (state->fd == -1) {
         free(state->path);

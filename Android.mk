@@ -18,6 +18,7 @@ zlib_files := \
 	inflate.c \
 	inftrees.c \
 	inffast.c \
+	slhash.c \
 	trees.c \
 	uncompr.c \
 	zutil.c
