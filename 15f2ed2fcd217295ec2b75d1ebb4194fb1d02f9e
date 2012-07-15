@@ -1,0 +1,9 @@
+Change-Id: I15f2ed2fcd217295ec2b75d1ebb4194fb1d02f9e
+Code-Review+2: Steve Kondik <shade@chemlab.org>
+Verified+1: Steve Kondik <shade@chemlab.org>
+Code-Review+1: Jerpelea <jerpelea@gmail.com>
+Submitted-by: Steve Kondik <shade@chemlab.org>
+Submitted-at: Sun, 15 Jul 2012 08:22:50 +0400
+Reviewed-on: http://review.cyanogenmod.com/18838
+Project: CyanogenMod/android_external_zlib
+Branch: refs/heads/jellybean
