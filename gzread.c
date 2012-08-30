@@ -58,7 +58,8 @@ local int gz_avail(state)
         return -1;
     if (state->eof == 0) {
         if (strm->avail_in) {       /* copy what's there to the start */
-            unsigned char *p = state->in, *q = strm->next_in;
+            unsigned char *p = state->in;
+            unsigned const char *q = strm->next_in;
             unsigned n = strm->avail_in;
             do {
                 *p++ = *q++;
@@ -378,7 +379,11 @@ int ZEXPORT gzread(file, buf, len)
 }
 
 /* -- see zlib.h -- */
-#undef gzgetc
+#ifdef Z_PREFIX_SET
+#  undef z_gzgetc
+#else
+#  undef gzgetc
+#endif
 int ZEXPORT gzgetc(file)
     gzFile file;
 {

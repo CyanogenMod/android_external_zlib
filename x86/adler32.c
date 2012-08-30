@@ -2,7 +2,7 @@
  * adler32.c -- compute the Adler-32 checksum of a data stream
  *   x86 implementation
  * Copyright (C) 1995-2007 Mark Adler
- * Copyright (C) 2009-2011 Jan Seiffert
+ * Copyright (C) 2009-2012 Jan Seiffert
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -160,7 +160,7 @@ local noinline const Bytef *adler32_jumped(buf, s1, s2, k)
 
 
 
-#if 0 && (HAVE_BINUTILS-0) >= 222
+#  if 0 && (HAVE_BINUTILS-0) >= 222
         /*
          * 2013 Intel will hopefully bring the Haswell CPUs,
          * which hopefully will have AVX2, which brings integer
@@ -195,9 +195,9 @@ local noinline const Bytef *adler32_jumped(buf, s1, s2, k)
         "jg	2b\n\t"
         avx2_chop
         ...
-#endif
+#  endif
 
-#if 0
+#  if 0
         /*
          * Will XOP processors have SSSE3/AVX??
          * And what is the unaligned load performance?
@@ -227,9 +227,25 @@ local noinline const Bytef *adler32_jumped(buf, s1, s2, k)
         "paddd	%%xmm1, %%xmm3\n\t"
         "movd	%%xmm2, %2\n\t"
         "movd	%%xmm3, %1\n\t"
-#endif
+#  endif
 
 /* ========================================================================= */
+#  define TO_STR2(x) #x
+#  define TO_STR(x) TO_STR2(x)
+#  if (HAVE_BINUTILS-0) >= 217
+#   define PMADDUBSW_XMM5_XMM0 "pmaddubsw	%%xmm5, %%xmm0\n\t"
+#   define PALIGNR_XMM0_XMM0(o) "palignr	$("TO_STR(o)"), %%xmm0, %%xmm0\n\t"
+#   define PALIGNR_XMM1_XMM0(o) "palignr	$("TO_STR(o)"), %%xmm1, %%xmm0\n\t"
+#  else
+#   define PMADDUBSW_XMM5_XMM0 ".byte 0x66, 0x0f, 0x38, 0x04, 0xc5\n\t"
+#   define PALIGNR_XMM0_XMM0(o) ".byte 0x66, 0x0f, 0x3a, 0x0f, 0xc0, "TO_STR(o)"\n\t"
+#   define PALIGNR_XMM1_XMM0(o) ".byte 0x66, 0x0f, 0x3a, 0x0f, 0xc1, "TO_STR(o)"\n\t"
+#  endif
+#  ifdef __x86_64__
+#   define NREG "q"
+#  else
+#   define NREG ""
+#  endif
 local uLong adler32_SSSE3(adler, buf, len)
     uLong adler;
     const Bytef *buf;
@@ -237,25 +253,129 @@ local uLong adler32_SSSE3(adler, buf, len)
 {
     unsigned int s1 = adler & 0xffff;
     unsigned int s2 = (adler >> 16) & 0xffff;
-    unsigned int k;
-
-    k    = ALIGN_DIFF(buf, 16);
-    len -= k;
-    if (k)
-        buf = adler32_jumped(buf, &s1, &s2, k);
+    unsigned int k,t;
 
     __asm__ __volatile__ (
-            "mov	%6, %3\n\t"		/* get max. byte count VNMAX till v1_round_sum overflows */
-            "cmp	%3, %4\n\t"
-            "cmovb	%4, %3\n\t"		/* k = len >= VNMAX ? k : len */
-            "sub	%3, %4\n\t"		/* len -= k */
-            "cmp	$16, %3\n\t"
-            "jb	8f\n\t"			/* if(k < 16) goto OUT */
-#if defined(__ELF__) && !defined(__clang__)
+            "jb	9f\n\t"				/* if(k < 32) goto OUT */
+            "prefetchnta	0x70(%0)\n\t"
+            "movdqa	%6, %%xmm5\n\t"		/* get vord_b */
+            "movd	%k2, %%xmm2\n\t"	/* init vector sum vs2 with s2 */
+            "movd	%k1, %%xmm3\n\t"	/* init vector sum vs1 with s1 */
+            "pxor	%%xmm4, %%xmm4\n"	/* zero */
+            "mov	%k0, %k3\n\t"		/* copy buf pointer */
+            "and	$-16, %0\n\t"		/* align buf pointer down */
+            "xor	%k0, %k3\n\t"		/* extract num_misaligned */
+            "jz	4f\n\t"				/* no misalignment? goto start of loop */
+            "movdqa	(%0), %%xmm0\n\t"	/* fetch input data as first arg */
+            "pxor	%%xmm1, %%xmm1\n\t"	/* clear second arg */
+            "mov	%3, %5\n\t"		/* copy num_misaligned as last arg */
+            "call	ssse3_align_l\n"	/* call ssse3 left alignment helper */
+            "sub	$16, %k3\n\t"		/* build valid bytes ... */
+            "add	$16, %0\n\t"		/* advance input data pointer */
+            "neg	%k3\n\t"		/* ... out of num_misaligned */
+            "sub	%k3, %k4\n\t"		/* len -= valid bytes */
+            "imul	%k1, %k3\n\t"		/* valid_bytes *= s1 */
+            "movd	%k3, %%xmm1\n\t"	/* transfer to sse */
+            "pslldq	$12, %%xmm1\n\t"	/* mov into high dword */
+            "por	%%xmm1, %%xmm2\n\t"	/* stash s1 times valid_bytes in vs2 */
+            "movdqa	%%xmm0, %%xmm1\n\t"	/* make a copy of the input data */
+            PMADDUBSW_XMM5_XMM0		/* multiply all input bytes by vord_b bytes, add adjecent results to words */
+            "psadbw	%%xmm4, %%xmm1\n\t"	/* subtract zero from every byte, add 8 bytes to a sum */
+            "movdqa	%%xmm0, %%xmm6\n\t"	/* copy word mul result */
+            "paddd	%%xmm1, %%xmm3\n\t"	/* vs1 += psadbw */
+            "punpckhwd	%%xmm4, %%xmm0\n\t"	/* zero extent upper words to dwords */
+            "punpcklwd	%%xmm4, %%xmm6\n\t"	/* zero extent lower words to dwords */
+            "paddd	%%xmm0, %%xmm2\n\t"	/* vs2 += vs2_i.upper */
+            "paddd	%%xmm6, %%xmm2\n\t"	/* vs2 += vs2_i.lower */
+            "jmp	4f\n\t"
+#  if defined(__ELF__) && !defined(__clang__)
             ".subsection 2\n\t"
-#else
-            "jmp	7f\n\t"
-#endif
+#  endif
+            ".p2align 2\n"
+            /*
+             * helper function to align data in sse reg
+             * will keep %5 bytes in xmm0 on the left
+             * and fill the rest with bytes from xmm1
+             * (note: little-endian -> left == higher addr)
+             */
+            "ssse3_align_l:\n\t"
+            "sub	$1, %5\n\t"	/* k -= 1 */
+            "shl	$4, %5\n\t"	/* k *= 16 */
+#  ifdef __x86_64__
+            "lea	7f(%%rip), %%r11\n\t"
+            "lea	(%%r11,%q5, 1), %q5\n\t"
+            "jmp	*%q5\n\t"
+#  else
+#   ifndef __PIC__
+            "lea	7f(%5), %5\n\t"
+#   else
+            "lea	7f-1f(%5), %5\n\t"
+            "call	2f\n\t"
+            "1:\n\t"
+#   endif
+            "jmp	*%5\n\t"
+#  endif
+            ".p2align 2\n"
+            /*
+             * helper function to align data in sse reg
+             * will push %5 bytes in xmm0 to the left
+             * and fill the rest with bytes from xmm1
+             * (note: little-endian -> left == higher addr)
+             */
+            "ssse3_align_r:\n\t"
+            "sub	$15, %5\n\t"
+            "neg	%5\n\t"		/* k = 16 - (k - 1) */
+            "shl	$4, %5\n\t"	/* k *= 16 */
+#  ifdef __x86_64__
+            "lea	6f(%%rip), %%r11\n\t"
+            "lea	(%%r11,%q5, 1), %q5\n\t"
+            "jmp	*%q5\n\t"
+#  else
+#   ifndef __PIC__
+            "lea	6f(%5), %5\n\t"
+#   else
+            "lea	6f-1f(%5), %5\n\t"
+            "call	2f\n\t"
+            "1:\n\t"
+#   endif
+            "jmp	*%5\n\t"
+#   ifdef __PIC__
+            "2:\n\t"
+            "addl	(%%esp), %5\n\t"
+            "ret\n\t"
+#   endif
+#  endif
+
+#  define ALIGNSTEP(o) \
+    PALIGNR_XMM0_XMM0(o) \
+    ".p2align 3\n\t" \
+    PALIGNR_XMM1_XMM0(16-o) \
+    "ret\n\t" \
+    ".p2align 4\n\t"
+
+            ".p2align 4\n"
+            "7:\n\t"		/* 0 */
+            PALIGNR_XMM0_XMM0(1) /* 6 */
+            ".p2align 3\n\t" /* 2 */
+            "6:\n\t"
+            PALIGNR_XMM1_XMM0(16-1) /* 6 */
+            "ret\n\t" /* 1 */
+            ".p2align 4\n\t"	/* 16 */
+            ALIGNSTEP(2)	/* 32 */
+            ALIGNSTEP(3)	/* 48 */
+            ALIGNSTEP(4)	/* 64 */
+            ALIGNSTEP(5)	/* 80 */
+            ALIGNSTEP(6)	/* 96 */
+            ALIGNSTEP(7)	/* 112 */
+            ALIGNSTEP(8)	/* 128 */
+            ALIGNSTEP(9)	/* 144 */
+            ALIGNSTEP(10)	/* 160 */
+            ALIGNSTEP(11)	/* 176 */
+            ALIGNSTEP(12)	/* 192 */
+            ALIGNSTEP(13)	/* 208 */
+            ALIGNSTEP(14)	/* 224 */
+            ALIGNSTEP(15)	/* 256 */
+#  undef ALIGNSTEP
             ".p2align 2\n"
             /*
              * reduction function to bring a vector sum within the range of BASE
@@ -271,27 +391,31 @@ local uLong adler32_SSSE3(adler, buf, len)
             "pslld	$4, %%xmm0\n\t"		/* x <<= 4 */
             "paddd	%%xmm1, %%xmm0\n\t"	/* x += y */
             "ret\n\t"
-#if defined(__ELF__) && !defined(__clang__)
+#  if defined(__ELF__) && !defined(__clang__)
             ".previous\n\t"
-#else
-            "7:\n\t"
-#endif
-            "movdqa	%5, %%xmm5\n\t"		/* get vord_b */
-            "prefetchnta	0x70(%0)\n\t"
-            "movd %2, %%xmm2\n\t"		/* init vector sum vs2 with s2 */
-            "movd %1, %%xmm3\n\t"		/* init vector sum vs1 with s1 */
-            "pxor	%%xmm4, %%xmm4\n"	/* zero */
-            "3:\n\t"
-            "pxor	%%xmm7, %%xmm7\n\t"	/* zero vs1_round_sum */
-            ".p2align 3,,3\n\t"
+#  endif
             ".p2align 2\n"
-            "2:\n\t"
+            "6:\n\t"
             "mov	$128, %1\n\t"		/* inner_k = 128 bytes till vs2_i overflows */
             "cmp	%1, %3\n\t"
             "cmovb	%3, %1\n\t"		/* inner_k = k >= inner_k ? inner_k : k */
             "and	$-16, %1\n\t"		/* inner_k = ROUND_TO(inner_k, 16) */
             "sub	%1, %3\n\t"		/* k -= inner_k */
             "shr	$4, %1\n\t"		/* inner_k /= 16 */
+            "mov	$1, %5\n\t"		/* outer_k = 1 */
+            "jmp	5f\n"			/* goto loop start */
+            "3:\n\t"
+            "pxor	%%xmm7, %%xmm7\n\t"	/* zero vs1_round_sum */
+            "mov	%3, %5\n\t"		/* determine full inner_k (==8) rounds from k */
+            "and	$-128, %5\n\t"		/* outer_k = ROUND_TO(outer_k, 128) */
+            "sub	%5, %3\n\t"		/* k -= outer_k */
+            "shr	$7, %5\n\t"		/* outer_k /= 128 */
+            "jz         6b\n\t"			/* if outer_k == 0 handle trailer */
+            ".p2align 3,,3\n\t"
+            ".p2align 2\n"
+            "2:\n\t"
+            "mov	$8, %1\n"		/* inner_k = 8 */
+            "5:\n\t"
             "pxor	%%xmm6, %%xmm6\n\t"	/* zero vs2_i */
             ".p2align 4,,7\n"
             ".p2align 3\n"
@@ -302,11 +426,7 @@ local uLong adler32_SSSE3(adler, buf, len)
             "add	$16, %0\n\t"		/* advance input data pointer */
             "dec	%1\n\t"			/* decrement inner_k */
             "movdqa	%%xmm0, %%xmm1\n\t"	/* make a copy of the input data */
-#  if (HAVE_BINUTILS-0) >= 217
-            "pmaddubsw %%xmm5, %%xmm0\n\t"	/* multiply all input bytes by vord_b bytes, add adjecent results to words */
-#  else
-            ".byte 0x66, 0x0f, 0x38, 0x04, 0xc5\n\t" /* pmaddubsw %%xmm5, %%xmm0 */
-#  endif
+            PMADDUBSW_XMM5_XMM0		/* multiply all input bytes by vord_b bytes, add adjecent results to words */
             "psadbw	%%xmm4, %%xmm1\n\t"	/* subtract zero from every byte, add 8 bytes to a sum */
             "paddw	%%xmm0, %%xmm6\n\t"	/* vs2_i += in * vorder_b */
             "paddd	%%xmm1, %%xmm3\n\t"	/* vs1 += psadbw */
@@ -316,24 +436,56 @@ local uLong adler32_SSSE3(adler, buf, len)
             "punpcklwd	%%xmm4, %%xmm6\n\t"	/* zero extent vs2_i lower words to dwords */
             "paddd	%%xmm0, %%xmm2\n\t"	/* vs2 += vs2_i.upper */
             "paddd	%%xmm6, %%xmm2\n\t"	/* vs2 += vs2_i.lower */
+            "dec	%5\n\t"			/* decrement outer_k  */
+            "jnz	2b\n\t"			/* repeat with inner_k = 8 if outer_k != 0 */
             "cmp	$15, %3\n\t"
-            "jg	2b\n\t"				/* if(k > 15) repeat */
+            "ja	6b\n\t"				/* if(k > 15) repeat */
             "movdqa	%%xmm7, %%xmm0\n\t"	/* move vs1_round_sum */
-            "call	sse2_chop\n\t"	/* chop vs1_round_sum */
+            "call	sse2_chop\n\t"		/* chop vs1_round_sum */
             "pslld	$4, %%xmm0\n\t"		/* vs1_round_sum *= 16 */
             "paddd	%%xmm2, %%xmm0\n\t"	/* vs2 += vs1_round_sum */
-            "call	sse2_chop\n\t"	/* chop again */
+            "call	sse2_chop\n\t"		/* chop again */
             "movdqa	%%xmm0, %%xmm2\n\t"	/* move vs2 back in place */
             "movdqa	%%xmm3, %%xmm0\n\t"	/* move vs1 */
-            "call	sse2_chop\n\t"	/* chop */
+            "call	sse2_chop\n\t"		/* chop */
             "movdqa	%%xmm0, %%xmm3\n\t"	/* move vs1 back in place */
-            "add	%3, %4\n\t"		/* len += k */
-            "mov	%6, %3\n\t"		/* get max. byte count VNMAX till v1_round_sum overflows */
+            "add	%3, %4\n"		/* len += k */
+            "4:\n\t"	/* top of loop */
+            "mov	%7, %3\n\t"		/* get max. byte count VNMAX till v1_round_sum overflows */
             "cmp	%3, %4\n\t"
             "cmovb	%4, %3\n\t"		/* k = len >= VNMAX ? k : len */
             "sub	%3, %4\n\t"		/* len -= k */
             "cmp	$15, %3\n\t"
-            "jg	3b\n\t"				/* if(k > 15) repeat */
+            "ja	3b\n\t"				/* if(k > 15) repeat */
+            "test	%k3, %k3\n\t"		/* test for 0 */
+            "jz	5f\n\t"				/* if (k == 0) goto OUT */
+            "movdqa	(%0), %%xmm0\n\t"	/* fetch remaining input data as first arg */
+            "add	%"NREG"3, %"NREG"0\n\t"		/* add remainder to to input data pointer */
+            "movdqa	%%xmm4, %%xmm1\n\t"	/* set second arg 0 */
+            "mov	%k3, %k5\n\t"		/* copy remainder as last arg */
+            "call	ssse3_align_r\n\t"	/* call ssse3 right alignment helper */
+            "movdqa	%%xmm4, %%xmm7\n\t"	/* sum = 0 */
+            "movdqa	%%xmm3, %%xmm1\n\t"	/* t = vs1 */
+            /* russian peasant mul, k is small */
+            ".p2align 2\n"
+            "6:\n\t"
+            "shr	$1, %k3\n\t"		/* k >>= 1 */
+            "jnc	7f\n\t"
+            "paddd	%%xmm1, %%xmm7\n\t"	/* add t to sum if 1 bit shifted out of k */
+            "7:\n\t"
+            "paddd	%%xmm1, %%xmm1\n\t"	/* t *= 2 */
+            "jnz	6b\n\t"			/* while(k != 0) */
+            "paddd	%%xmm7, %%xmm2\n\t"	/* vs2 += k * vs1 */
+            "movdqa	%%xmm0, %%xmm1\n\t"	/* make a copy of the input data */
+            PMADDUBSW_XMM5_XMM0		/* multiply all input bytes by vord_b bytes, add adjecent results to words */
+            "psadbw	%%xmm4, %%xmm1\n\t"	/* subtract zero from every byte, add 8 bytes to a sum */
+            "movdqa	%%xmm0, %%xmm6\n\t"	/* copy word mul result */
+            "paddd	%%xmm1, %%xmm3\n\t"	/* vs1 += psadbw */
+            "punpckhwd	%%xmm4, %%xmm0\n\t"	/* zero extent upper words to dwords */
+            "punpcklwd	%%xmm4, %%xmm6\n\t"	/* zero extent lower words to dwords */
+            "paddd	%%xmm0, %%xmm2\n\t"	/* vs2 += vs2_i.upper */
+            "paddd	%%xmm6, %%xmm2\n\t"	/* vs2 += vs2_i.lower */
+            "5:\n\t"	/* OUT */
             "pshufd	$0xEE, %%xmm3, %%xmm1\n\t"	/* collect vs1 & vs2 in lowest vector member */
             "pshufd	$0xEE, %%xmm2, %%xmm0\n\t"
             "paddd	%%xmm3, %%xmm1\n\t"
@@ -342,24 +494,28 @@ local uLong adler32_SSSE3(adler, buf, len)
             "paddd	%%xmm0, %%xmm2\n\t"
             "movd	%%xmm1, %1\n\t"		/* mov vs1 to s1 */
             "movd	%%xmm2, %2\n"		/* mov vs2 to s2 */
-            "8:"
+            "9:"
         : /* %0 */ "=r" (buf),
           /* %1 */ "=r" (s1),
           /* %2 */ "=r" (s2),
           /* %3 */ "=r" (k),
-          /* %4 */ "=r" (len)
-        : /* %5 */ "m" (vord_b),
+          /* %4 */ "=r" (len),
+          /* %5 */ "=r" (t)
+        : /* %6 */ "m" (vord_b),
           /*
            * somewhere between 5 & 6, psadbw 64 bit sums ruin the party
            * spreading the sums with palignr only brings it to 7 (?),
            * while introducing an op into the main loop (2800 ms -> 3200 ms)
            */
-          /* %6 */ "i" (5*NMAX),
+          /* %7 */ "i" (5*NMAX),
           /*    */ "0" (buf),
           /*    */ "1" (s1),
           /*    */ "2" (s2),
           /*    */ "4" (len)
         : "cc", "memory"
+#  ifdef __x86_64__
+          , "r11"
+#  endif
 #  ifdef __SSE__
           , "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"
 #  endif
@@ -371,6 +527,10 @@ local uLong adler32_SSSE3(adler, buf, len)
     MOD28(s2);
     return (s2 << 16) | s1;
 }
+#  undef PMADDUBSW_XMM5_XMM0
+#  undef PALIGNR_XMM0_XMM0
+#  undef PALIGNR_XMM1_XMM0
+#  undef NREG
 
 /* ========================================================================= */
 local uLong adler32_SSE2(adler, buf, len)
