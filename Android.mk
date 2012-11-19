@@ -35,10 +35,6 @@ LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP $(zlib_arm_flags)
 LOCAL_SRC_FILES := $(zlib_files) $(zlib_arm_files)
-ifeq ($(TARGET_ARCH),arm)
-  LOCAL_NDK_VERSION := 5
-  LOCAL_SDK_VERSION := 9
-endif
 include $(BUILD_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -48,10 +44,6 @@ LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP $(zlib_arm_flags)
 LOCAL_SRC_FILES := $(zlib_files) $(zlib_arm_files)
-ifeq ($(TARGET_ARCH),arm)
-  LOCAL_NDK_VERSION := 5
-  LOCAL_SDK_VERSION := 9
-endif
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -92,10 +84,6 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := $(zlib_files)
 LOCAL_MODULE:= libunz
 LOCAL_ARM_MODE := arm
-ifeq ($(TARGET_ARCH),arm)
-  LOCAL_NDK_VERSION := 5
-  LOCAL_SDK_VERSION := 9
-endif
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
