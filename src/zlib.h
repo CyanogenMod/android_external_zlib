@@ -2,6 +2,7 @@
   version 1.2.8, April 28th, 2013
 
   Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
+  Copyright (c) 2010-2013 The Linux Foundation. All rights reserved.
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -37,7 +38,7 @@
 extern "C" {
 #endif
 
-#define ZLIB_VERSION "1.2.8"
+#define ZLIB_VERSION "1.2.8-linuxfoundation-mods-v1"
 #define ZLIB_VERNUM 0x1280
 #define ZLIB_VER_MAJOR 1
 #define ZLIB_VER_MINOR 2
