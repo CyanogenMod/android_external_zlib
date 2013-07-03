@@ -1,1 +1,1 @@
-/mnt/cm/mr1/external/zlib/src/zconf.h
+src/zconf.h

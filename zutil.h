@@ -1,1 +1,1 @@
-/mnt/cm/mr1/external/zlib/src/zutil.h
+src/zutil.h
