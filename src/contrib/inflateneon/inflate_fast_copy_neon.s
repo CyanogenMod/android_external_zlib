@@ -223,8 +223,8 @@ inflate_fast_copy_gap3b_proc:
 
 inflate_fast_copy_gap3b_proc_3bytes_loop:
 
-      cmp        r0,#3                   @; exit loop if len < 3
-      blt        inflate_fast_copy_gap3b_proc_3bytes_loop_done
+      cmp        r0,#3                   @; exit loop if len <= 3
+      ble        inflate_fast_copy_gap3b_proc_3bytes_loop_done
 
       vst1.32    {d0[0]},[r3],r4         @; store 4 bytes in out
                                          @; out+=3
@@ -325,8 +325,8 @@ inflate_fast_copy_gap5to7b_proc:
 
 inflate_fast_copy_gap5to7b_proc_5to7bytes_loop:
 
-      cmp        r0,r4                   @; exit loop if len < {5-7}
-      blt        inflate_fast_copy_gap5to7b_proc_5to7bytes_loop_done
+      cmp        r0,#7                   @; exit loop if len <= 7
+      ble        inflate_fast_copy_gap5to7b_proc_5to7bytes_loop_done
 
       vst1.8     {d0},[r3],r4            @; store 8 bytes in out
                                          @; out+={5-7}
@@ -427,8 +427,8 @@ inflate_fast_copy_gap9to15b_proc:
 
 inflate_fast_copy_gap9to15b_proc_9to15bytes_loop:
 
-      cmp        r0, r4              @; exit loop if len < {9-15}
-      blt        inflate_fast_copy_gap9to15b_proc_9to15bytes_loop_done
+      cmp        r0,#15              @; exit loop if len <= 15
+      ble        inflate_fast_copy_gap9to15b_proc_9to15bytes_loop_done
 
       vst1.8     {q0},[r3],r4        @; store 16 bytes in out
                                      @; out+={9-15}
