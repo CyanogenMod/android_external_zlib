@@ -26,8 +26,13 @@ LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP
 LOCAL_SRC_FILES := $(zlib_files)
-ifeq ($(TARGET_ARCH),arm)
+ifneq ($(filter arm arm64,$(TARGET_ARCH)),)
   LOCAL_SDK_VERSION := 9
+  ifeq ($(ARCH_ARM_HAVE_NEON),true)
+    LOCAL_CFLAGS_arm += -DZLIB_ARCH_ARM_NEON
+    LOCAL_SRC_FILES_arm += src/adler32_neon.S \
+			src/inffast_armv6.S
+  endif
 endif
 include $(BUILD_SHARED_LIBRARY)
 
@@ -38,8 +43,13 @@ LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP
 LOCAL_SRC_FILES := $(zlib_files)
-ifeq ($(TARGET_ARCH),arm)
+ifneq ($(filter arm arm64,$(TARGET_ARCH)),)
   LOCAL_SDK_VERSION := 9
+  ifeq ($(ARCH_ARM_HAVE_NEON),true)
+    LOCAL_CFLAGS_arm += -DZLIB_ARCH_ARM_NEON
+    LOCAL_SRC_FILES_arm += src/adler32_neon.S \
+			src/inffast_armv6.S
+  endif
 endif
 include $(BUILD_STATIC_LIBRARY)
 
@@ -84,8 +94,13 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := $(zlib_files)
 LOCAL_MODULE:= libunz
 LOCAL_ARM_MODE := arm
-ifeq ($(TARGET_ARCH),arm)
+ifneq ($(filter arm arm64,$(TARGET_ARCH)),)
   LOCAL_SDK_VERSION := 9
+  ifeq ($(ARCH_ARM_HAVE_NEON),true)
+    LOCAL_CFLAGS_arm += -DZLIB_ARCH_ARM_NEON
+    LOCAL_SRC_FILES_arm += src/adler32_neon.S \
+			src/inffast_armv6.S
+  endif
 endif
 include $(BUILD_STATIC_LIBRARY)
 

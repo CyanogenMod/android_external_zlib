@@ -8,6 +8,8 @@
 #include "inflate.h"
 #include "inffast.h"
 
+#ifndef ZLIB_ARCH_ARM_NEON
+
 #ifndef ASMINF
 
 /* Allow machine dependent optimization for post-increment or pre-increment.
@@ -338,3 +340,4 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
  */
 
 #endif /* !ASMINF */
+#endif /* !ZLIB_ARCH_ARM_NEON */

@@ -11,6 +11,10 @@
 
 local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
 
+#if defined ZLIB_ARCH_ARM_NEON
+	extern uLong adler32_vec(uLong adler, uLong sum2, const Bytef *buf, uInt len);
+#endif
+
 #define BASE 65521      /* largest prime smaller than 65536 */
 #define NMAX 5552
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
@@ -57,6 +61,7 @@ local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
     } while (0)
 #else
 #  define MOD(a) a %= BASE
+#  define MOD4(a) a %= BASE
 #  define MOD28(a) a %= BASE
 #  define MOD63(a) a %= BASE
 #endif
@@ -113,6 +118,19 @@ uLong ZEXPORT adler32(adler, buf, len)
         MOD(sum2);
     }
 
+#if defined ZLIB_ARCH_ARM_NEON
+    /* align buf to 16-byte boundary */
+    while (((uintptr_t)buf)&15) { /* not on a 16-byte boundary */
+        len--;
+        adler += *buf++;
+        sum2 += adler;
+        if (adler >= BASE) adler -= BASE;
+        MOD4(sum2);             /* only added so many BASE's */
+    }
+    return adler32_vec(adler, sum2, buf, len);      // armv7 neon vectorized implementation
+
+#else   // ZLIB_ARCH_ARM_NEON
+
     /* do remaining bytes (less than NMAX, still just one modulo) */
     if (len) {                  /* avoid modulos if none remaining */
         while (len >= 16) {
@@ -130,6 +148,7 @@ uLong ZEXPORT adler32(adler, buf, len)
 
     /* return recombined sums */
     return adler | (sum2 << 16);
+#endif  // ZLIB_ARCH_ARM_NEON
 }
 
 /* ========================================================================= */
