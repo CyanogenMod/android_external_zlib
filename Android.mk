@@ -26,6 +26,9 @@ LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP
 
+# FIXME: ask keith about this
+LOCAL_CLANG := false
+
 # TODO: This is to work around b/19059885. Remove after root cause is fixed
 LOCAL_LDFLAGS_arm := -Wl,--hash-style=both
 
@@ -47,6 +50,8 @@ ifneq ($(TARGET_BUILD_APPS),)
   LOCAL_SDK_VERSION := 9
 endif
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
+LOCAL_CLANG := false
+
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -58,6 +63,8 @@ LOCAL_CFLAGS += -O3 -DUSE_MMAP
 LOCAL_SRC_FILES := $(zlib_files)
 LOCAL_MULTILIB := both
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
+LOCAL_CLANG := false
+
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -69,6 +76,8 @@ LOCAL_CFLAGS += -O3 -DUSE_MMAP
 LOCAL_SRC_FILES := $(zlib_files)
 LOCAL_MULTILIB := both
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
+LOCAL_CLANG := false
+
 include $(BUILD_HOST_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -90,5 +99,6 @@ LOCAL_SRC_FILES:=        \
 LOCAL_MODULE:= minigzip
 
 LOCAL_STATIC_LIBRARIES := libz
+LOCAL_CLANG := false
 
 include $(BUILD_HOST_EXECUTABLE)
