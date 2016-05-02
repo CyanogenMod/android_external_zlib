@@ -25,6 +25,7 @@ zlib_files := \
 LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP
+LOCAL_CFLAGS_arm64 += -mcpu=generic+crc
 
 # TODO: This is to work around b/24465209. Remove after root cause is fixed
 LOCAL_LDFLAGS_arm := -Wl,--hash-style=both
@@ -44,6 +45,7 @@ LOCAL_ARM_MODE := arm
 LOCAL_MODULE := libz
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -O3 -DUSE_MMAP
+LOCAL_CFLAGS_arm64 += -mcpu=generic+crc
 LOCAL_SRC_FILES := $(zlib_files)
 ifneq ($(TARGET_BUILD_APPS),)
   LOCAL_SDK_VERSION := 9

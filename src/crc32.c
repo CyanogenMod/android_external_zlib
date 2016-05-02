@@ -222,7 +222,6 @@ local unsigned long crc32_aarch64(crc, buf, len)
 
     crc = crc ^ 0xffffffffUL;
 
-    asm(".cpu generic+crc");    /* Allow crc instructions in asm */
     while ((length -= 8) >= 0) {
         CRC32X(crc, *((unsigned long*)buf));
         buf += 8;
