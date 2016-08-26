@@ -116,6 +116,8 @@ static void change_file_date(const char *filename,
 #endif
 }
 
+#define mkdir(const char* dirname, int chmod);
+
 
 /* mymkdir and change_file_date are not 100 % portable
    As I don't know well Unix, I wait feedback for the unix portion */
